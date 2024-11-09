@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Plan Zajęć</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .schedule-entry {
+            background-color: #ffdd57;
+            border-radius: 5px;
+            padding: 5px;
+            margin: 0px 0;
+            position: relative;
+        }
+        .time-label {
+            font-weight: bold;
+        }
+        .empty-slot {
+            height: 15px; /* Dla odstępów */
+            background-color: transparent;
+        }
+       
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const startDateElement = document.getElementById("week-header");
+            const startDateStr = startDateElement.getAttribute("data-start-date");
+
+            if (startDateStr) {
+                let currentDate = new Date(startDateStr);
+                
+                for (let i = 0; i < 5; i++) {
+                    const dateElement = document.getElementById(`date-${i}`);
+                    if (dateElement) {
+                        dateElement.textContent = currentDate.toLocaleDateString('pl-PL', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        });
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                }
+            }
+        });
+    </script>
+</head>
+
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+
+<body>       
+    <h1 id="week-header" data-start-date="{{ start_date.isoformat() }}">
+        <form method="post" style="display: inline;">
+            <input type="hidden" name="group_number" value="{{ group_number }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            <button type="submit" name="previous_week" class="arrow-button">&#8249;</button>
+        </form>
+        
+        Tydzień {{ start_date.strftime('%Y-%m-%d') }} - {{ end_date.strftime('%Y-%m-%d') }}
+        
+        <form method="post" style="display: inline;">
+            <input type="hidden" name="group_number" value="{{ group_number }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            <button type="submit" name="next_week" class="arrow-button">&#8250;</button>
+        </form>
+    </h1>
+    
+    <!-- Grupy jako przyciski -->
+    <div class="group-buttons">
+        <form method="post" style="
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+    ">            
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            {% for group in range(1, 16) %}
+                <button type="submit" name="group_number" value="{{ group }}" 
+                        class="group-button {% if group == group_number|int %}selected{% endif %}">
+                    Gr {{ group }}
+                </button>
+            {% endfor %}
+        
+        </form>
+    </div>
+    
+    <!-- Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-text"></div>
+        </div>
+    </div>
+
+    <div class="container schedule-container">
+        <!-- Nagłówki dni tygodnia -->
+        <div class="row">
+            <div class="col-1"></div> <!-- Puste miejsce na kolumnę godzin -->
+            {% for day in ['PONIEDZIAŁEK', 'WTOREK', 'ŚRODA', 'CZWARTEK', 'PIĄTEK'] %}
+                <div class="col text-center day-header">
+                    {{ day }}<br>
+                    <span class="day-date" id="date-{{ loop.index0 }}"></span>
+                </div>
+            {% endfor %}
+        </div>
+    
+        <!-- Tabela z godzinami i zajęciami -->
+        <div class="row">
+            <!-- Kolumna z godzinami -->
+            <div class="col-1 hour-column">
+                {% for hour in range(7, 22) %}
+                    <div class="hour-label">
+                        <span class="hour-text">{{ hour }}:00</span>
+                        <span class="hour-line"></span>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Kolumny dla dni tygodnia -->
+            {% for day in ['PONIEDZIAŁEK', 'WTOREK', 'ŚRODA', 'CZWARTEK', 'PIĄTEK'] %}
+            <div class="col day-column">
+                {% if schedule_entries %}
+                    {% for entry in schedule_entries if entry.day == day %}
+                        <!-- Dodaj pusty slot, jeśli potrzebny -->
+                        <div class="empty-slot" style="height: {{ entry.spacing_before * 1 }}px;"></div>
+                        <div class="schedule-entry {{ entry.gradient_class }}" style="height: {{ entry.duration * 1 }}px;">
+                            <span class="time-label">{{ entry.start_time_formatted }} - {{ entry.end_time_formatted }}</span><br>
+                            {{ entry.subject }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    
+        <!-- Dodaj wiadomość, jeśli nie ma zajęć -->
+        {% if not schedule_entries %}
+            <p class="text-center">Brak zajęć dla wybranej grupy w wybranym tygodniu.</p>
+        {% endif %}
+    </div>
+
+    <script src="static/scirpts.js"></script>
+</body>
+</html>
