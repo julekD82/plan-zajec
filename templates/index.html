@@ -133,7 +133,7 @@
             </div>
             {% endfor %}
         </div>
-    
+        <p class="text-center">Ostatnia aktualizacja planu: {{ last_update_date }}</p>
         <!-- Dodaj wiadomość, jeśli nie ma zajęć -->
         {% if not schedule_entries %}
             <p class="text-center">Brak zajęć dla wybranej grupy w wybranym tygodniu.</p>
