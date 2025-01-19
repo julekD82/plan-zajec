@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+/credentials.json
+/.idea/git_toolbox_blame.xml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/PPP_Project.iml
+/test.py
+/token.json
+/.idea/vcs.xml

@@ -3,12 +3,14 @@ import pandas as pd
 from sqlalchemy import create_engine
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
+from google_event import add_event
 
 DB_URL = 'sqlite:///plan.db'
 TABLE_NAME = 'schedule_entries'
 
 app = Flask(__name__)
 engine = create_engine(DB_URL)
+ENTRIES = []
 
 def get_current_week():
     today = datetime.now()
@@ -28,6 +30,7 @@ def get_last_update_date():
     except FileNotFoundError:
         return "Brak danych"  # Jeśli plik nie istnieje
     return "Brak danych"
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -64,19 +67,22 @@ def index():
     else:
         error_message = None
 
+    ENTRIES = schedule_entries.to_dict('records')
+
+
+    for entry_id, entry in enumerate(ENTRIES):
+        entry["id"] = entry_id
+
     # Pobierz datę ostatniej aktualizacji
     last_update_date = get_last_update_date()
-
-    return render_template('index.html', 
-                           schedule_entries=schedule_entries.to_dict('records'), 
+    return render_template('index.html',
+                           schedule_entries=ENTRIES,
                            group_number=group_number,
                            start_date=current_start_date,
                            end_date=current_end_date,
                            error_message=error_message,
                            last_update_date=last_update_date,
                            timedelta=timedelta)
-
-
 
 
 @app.route('/update', methods=['GET'])
@@ -90,6 +96,17 @@ def update_schedule():
             return jsonify({"status": "error", "message": "Update script failed.", "error": result.stderr}), 500
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-    
+
+
+@app.route('/update-google-event', methods=['POST'])
+def update_google_event():
+    try:
+        data = request.json
+        add_event(data['title'], data['startTime'], data['endTime'], "", "")
+        return jsonify({"status": "success", "message": "Event added to Google Calendar successfully."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
