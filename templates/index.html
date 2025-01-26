@@ -147,9 +147,30 @@
     <!-- Kontekstowe menu -->
     <div id="context-menu" class="context-menu">
         <ul>
-            <li id="export-outlook">Eksportuj do Outlook</li>
+            <li id="export-outlook"></li>
             <li id="export-google">Eksportuj do Google Kalendarza</li>
         </ul>
     </div>
+
+    <!-- Przycisk do zapisania planu jako obraz -->
+    <div class="text-center">
+        <button id="save-schedule" class="btn btn-primary" onclick="saveSchedule()">Zapisz plan do zdjęcia</button>
+    </div>
+
+    <script>
+        function saveSchedule() {
+            fetch('/save-schedule-to-image')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        alert("Plan zapisany jako obraz!");
+                        window.open(data.image_url, '_blank');
+                    } else {
+                        alert("Wystąpił błąd: " + data.error);
+                    }
+                });
+        }
+    </script>
+
 </body>
 </html>

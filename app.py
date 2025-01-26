@@ -4,7 +4,12 @@ from sqlalchemy import create_engine
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 from google_event import add_event
-
+from flask import send_file, jsonify
+from weasyprint import HTML, CSS
+from pdf2image import convert_from_path
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 DB_URL = 'sqlite:///plan.db'
 TABLE_NAME = 'schedule_entries'
 
@@ -25,11 +30,34 @@ def get_last_update_date():
         with open('last_update.txt', 'r') as f:
             line = f.readline().strip()
             if line:
-                date_part = line.split('|')[0]  # Pobierz tylko datę
+                date_part = line.split('|')[0]
                 return date_part
     except FileNotFoundError:
-        return "Brak danych"  # Jeśli plik nie istnieje
+        return "Brak danych"
     return "Brak danych"
+
+
+def get_rendered_html(url):
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--window-size=1920,3000")
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver.get(url)
+    html_source = driver.page_source
+    driver.quit()
+    return html_source
+
+
+@app.route('/save-schedule-to-image', methods=['GET'])
+def save_schedule_to_image():
+    url = "http://localhost:5000"
+    output_pdf_path = "schedule.pdf"
+    html_content = get_rendered_html(url)
+
+    HTML(string=html_content).write_pdf(output_pdf_path, stylesheets=[
+        CSS(string='@page { size: A4 landscape; margin: 1cm; }')
+    ])
+    return jsonify({"status": "success", "image_url": f'/static/{output_pdf_path}'})
 
 
 @app.route('/', methods=['GET', 'POST'])
