@@ -10,6 +10,8 @@ from pdf2image import convert_from_path
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from PyPDF2 import PdfReader, PdfWriter
+
 DB_URL = 'sqlite:///plan.db'
 TABLE_NAME = 'schedule_entries'
 
@@ -48,16 +50,37 @@ def get_rendered_html(url):
     return html_source
 
 
+import os
+
 @app.route('/save-schedule-to-image', methods=['GET'])
 def save_schedule_to_image():
     url = "http://localhost:5000"
     output_pdf_path = "schedule.pdf"
+    output_pdf_path_trimmed = "static/schedule_trimmed.pdf"
     html_content = get_rendered_html(url)
 
     HTML(string=html_content).write_pdf(output_pdf_path, stylesheets=[
-        CSS(string='@page { size: A4 landscape; margin: 1cm; }')
+        CSS(string="""
+        @page { size: A4 landscape; margin: 1cm; }
+        """)
     ])
-    return jsonify({"status": "success", "image_url": f'/static/{output_pdf_path}'})
+
+    reader = PdfReader(output_pdf_path)
+    writer = PdfWriter()
+
+    if len(reader.pages) == 3:
+        for i in range(2, len(reader.pages)):
+            writer.add_page(reader.pages[i])
+    else:
+        for i in range(len(reader.pages)):
+            writer.add_page(reader.pages[i])
+    os.makedirs(os.path.dirname(output_pdf_path_trimmed), exist_ok=True)
+    with open(output_pdf_path_trimmed, "wb") as f:
+        writer.write(f)
+
+    return jsonify({"status": "success", "image_url": f'/{output_pdf_path_trimmed}'})
+
+
 
 
 @app.route('/', methods=['GET', 'POST'])
