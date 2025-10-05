@@ -4,13 +4,7 @@ from sqlalchemy import create_engine
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 from google_event import add_event
-from flask import send_file, jsonify
-from weasyprint import HTML, CSS
-from pdf2image import convert_from_path
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from PyPDF2 import PdfReader, PdfWriter
+import os
 
 DB_URL = 'sqlite:///plan.db'
 TABLE_NAME = 'schedule_entries'
@@ -26,7 +20,6 @@ def get_current_week():
     end_of_week = start_of_week + timedelta(days=6)
     return start_of_week, end_of_week
 
-
 def get_last_update_date():
     try:
         with open('last_update.txt', 'r') as f:
@@ -37,51 +30,6 @@ def get_last_update_date():
     except FileNotFoundError:
         return "Brak danych"
     return "Brak danych"
-
-
-def get_rendered_html(url):
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--window-size=1920,3000")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.get(url)
-    html_source = driver.page_source
-    driver.quit()
-    return html_source
-
-
-import os
-
-@app.route('/save-schedule-to-image', methods=['GET'])
-def save_schedule_to_image():
-    url = "http://localhost:5000"
-    output_pdf_path = "schedule.pdf"
-    output_pdf_path_trimmed = "static/schedule_trimmed.pdf"
-    html_content = get_rendered_html(url)
-
-    HTML(string=html_content).write_pdf(output_pdf_path, stylesheets=[
-        CSS(string="""
-        @page { size: A4 landscape; margin: 1cm; }
-        """)
-    ])
-
-    reader = PdfReader(output_pdf_path)
-    writer = PdfWriter()
-
-    if len(reader.pages) == 3:
-        for i in range(2, len(reader.pages)):
-            writer.add_page(reader.pages[i])
-    else:
-        for i in range(len(reader.pages)):
-            writer.add_page(reader.pages[i])
-    os.makedirs(os.path.dirname(output_pdf_path_trimmed), exist_ok=True)
-    with open(output_pdf_path_trimmed, "wb") as f:
-        writer.write(f)
-
-    return jsonify({"status": "success", "image_url": f'/{output_pdf_path_trimmed}'})
-
-
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -120,11 +68,9 @@ def index():
 
     ENTRIES = schedule_entries.to_dict('records')
 
-
     for entry_id, entry in enumerate(ENTRIES):
         entry["id"] = entry_id
 
-    # Pobierz datę ostatniej aktualizacji
     last_update_date = get_last_update_date()
     return render_template('index.html',
                            schedule_entries=ENTRIES,
@@ -135,19 +81,18 @@ def index():
                            last_update_date=last_update_date,
                            timedelta=timedelta)
 
-
 @app.route('/update', methods=['GET'])
 def update_schedule():
-    # Uruchom skrypt update.py
     try:
-        result = subprocess.run(["python", "update.py"], capture_output=True, text=True)
+        result = subprocess.run(["python", "update.py"], capture_output=True, text=True, timeout=300)
         if result.returncode == 0:
             return jsonify({"status": "success", "message": "Update executed successfully.", "output": result.stdout})
         else:
             return jsonify({"status": "error", "message": "Update script failed.", "error": result.stderr}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({"status": "error", "message": "Update script timed out after 5 minutes."}), 500
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route('/update-google-event', methods=['POST'])
 def update_google_event():
@@ -158,6 +103,6 @@ def update_google_event():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
