@@ -3,7 +3,6 @@ import pandas as pd
 from sqlalchemy import create_engine
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
-from google_event import add_event
 import os
 
 DB_URL = 'sqlite:///plan.db'
@@ -91,15 +90,6 @@ def update_schedule():
             return jsonify({"status": "error", "message": "Update script failed.", "error": result.stderr}), 500
     except subprocess.TimeoutExpired:
         return jsonify({"status": "error", "message": "Update script timed out after 5 minutes."}), 500
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/update-google-event', methods=['POST'])
-def update_google_event():
-    try:
-        data = request.json
-        add_event(data['title'], data['startTime'], data['endTime'], "", "")
-        return jsonify({"status": "success", "message": "Event added to Google Calendar successfully."})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
